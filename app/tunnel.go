@@ -3,8 +3,9 @@ package app
 import (
 	"fmt"
 	"net"
-	"time"
 	"sync"
+	"crypto/tls"
+	"time"
 )
 
 type Tunnel struct {
@@ -13,14 +14,32 @@ type Tunnel struct {
 	TunnelIp      string
 	TunnelPort    int
 	DevicePort    int
+	DeviceTlsEnabled    byte
 }
 
 func (t *Tunnel) Start() {
 
+	var err error
+	var deviceConn net.Conn
+
+	deviceAddr := fmt.Sprintf("127.0.0.1:%d", t.DevicePort)
+
 	deviceConnDialer := net.Dialer{Timeout: 1 * time.Second}
-	deviceConn, err := deviceConnDialer.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", t.DevicePort))
-	if err != nil {
-		return
+
+	if t.DeviceTlsEnabled == 0 {
+
+		deviceConn, err = deviceConnDialer.Dial("tcp", deviceAddr)
+		if err != nil {
+			return
+		}
+	} else {
+
+		deviceConn, err = tls.DialWithDialer(&deviceConnDialer, "tcp", deviceAddr, &tls.Config{
+			InsecureSkipVerify: true,
+		})
+		if err != nil {
+			return
+		}
 	}
 
 	tunnelConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", t.TunnelIp, t.TunnelPort))
