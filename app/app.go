@@ -20,7 +20,7 @@ import (
 	"unicode/utf8"
 )
 
-const Version = 115
+const Version = 116
 const TerminalTagName = "cotunnel"
 const TerminalUIdSize = 4
 
@@ -198,12 +198,18 @@ func (app *App) S2CDeviceTunnelHandler(p packet.Packet) {
 		return
 	}
 
+	deviceTlsEnabled, err := p.ReadByte()
+	if err != nil {
+		return
+	}
+
 	tunnel := Tunnel{
 		Type:          int(tunnelType),
 		ConnectionUid: connectionUid,
 		TunnelIp:      tunnelIp,
 		TunnelPort:    tunnelPort,
 		DevicePort:    devicePort,
+		DeviceTlsEnabled:	deviceTlsEnabled,
 	}
 
 	go tunnel.Start()
