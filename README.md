@@ -37,10 +37,13 @@ You can add your workmates to your device's working group with privileges, then 
  >curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
  - Create your working folder named cotunnel this will be our gopath folder.
  >mkdir cotunnel
+ 
  >export GOPATH=(absolute path)/cotunnel
  - Create your source folder in cotunnel folder and clone this repository.
  >mkdir src
+ 
  >git clone gitlab.com/cotunnel/client
+ 
  >cd client
  - Get required dependencies using dep.
  >dep ensure
