@@ -40,7 +40,7 @@ You can add your workmates to your device's working group with privileges, then 
  
  >export GOPATH=(absolute path)/cotunnel
  - Create your source folder in cotunnel folder and clone this repository.
- >mkdir src
+ >mkdir src && cd src
  
  >git clone gitlab.com/cotunnel/client
  
