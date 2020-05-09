@@ -1,5 +1,5 @@
 # What is cotunnel?
-[Cotunnel](https://www.cotunnel.com) is a service you can connect your to device's terminal, local webservers from everywhere. You don't need static ip, ddns or another service anymore. Cotunnel is your device's gateway to the world. 
+[Cotunnel](https://www.cotunnel.com) is a service you can connect to your device's terminal, local webservers from everywhere. You don't need static IP, DDNS, or another service anymore. Cotunnel is your device's gateway to the world. 
 
 > This repository includes cotunnel client. You can build and install cotunnel client from the source code following the instructions.
 
@@ -7,7 +7,7 @@
 
 **Cloud Terminal**
 
-You don't need to use SSH client anymore. You can connect to your device's terminal in cotunnel dashboard from eveywhere.
+You don't need to use SSH client anymore. You can connect to your device's terminal in cotunnel dashboard from everywhere.
 
 ![cotunnel terminals page](https://cotunnel.s3.amazonaws.com/static/1.png)
 
