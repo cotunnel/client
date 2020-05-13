@@ -20,7 +20,7 @@ import (
 	"unicode/utf8"
 )
 
-const Version = 116
+const Version = 118
 const TerminalTagName = "cotunnel"
 const TerminalUIdSize = 4
 
@@ -39,10 +39,13 @@ type App struct {
 	Terminals cmap.ConcurrentMap
 
 	WriteMutex sync.Mutex
+
+	SafeReconnect	bool
 }
 
 type Options struct {
 	Key   string `hcl:"key"`
+	Exit  bool	  `hcl:"key"`
 	Token string `hcl:"token"`
 	Path  string `hcl:"path"`
 }
@@ -56,6 +59,8 @@ func New(options *Options) (*App, error) {
 		EncryptionKey: make([]byte, 0),
 
 		Terminals: cmap.New(),
+
+		SafeReconnect: false,
 	}, nil
 }
 
@@ -70,9 +75,12 @@ func (app *App) Run() error {
 				continue
 			}
 
-			app.Conn = conn
+			if !app.SafeReconnect {
+				cog.Print(cog.INFO, "Connected to the server.")
+			}
 
-			cog.Print(cog.INFO, "Connected to the server.")
+			app.Conn = conn
+			app.SafeReconnect = false
 
 			var cache = make([]byte, 0)
 
@@ -156,9 +164,10 @@ func (app *App) Run() error {
 				}
 			}
 
-			cog.Print(cog.INFO, "The server was disconnected. The client will try to reconnect after 10 seconds.")
-
-			time.Sleep(10 * time.Second)
+			if !app.SafeReconnect {
+				cog.Print(cog.INFO, "The server was disconnected. The client will try to reconnect after 10 seconds.")
+				time.Sleep(10 * time.Second)
+			}
 
 			// reset variables
 			app.IsEncrypted = false
@@ -526,9 +535,18 @@ func (app *App) S2CDeviceRegisterHandler(p packet.Packet) {
 			return
 		}
 
-		cog.Print(cog.INFO, "Successfully registered.")
-		cog.Print(cog.INFO, "You must start Cotunnel client again WITHOUT --key command.")
-		app.Exit()
+		if app.Options.Exit {
+			cog.Print(cog.INFO, "Successfully registered.")
+			cog.Print(cog.INFO, "You must start Cotunnel client again without --key command.")
+			app.Exit()
+			return
+		} else {
+			cog.Print(cog.INFO, "Successfully registered and working now.")
+			app.Options.Token = tokenString
+			app.Options.Key = ""
+			app.SafeReconnect = true
+			app.Conn.Close()
+		}
 	} else if status == 1 {
 		cog.Print(cog.ERROR, "Registration failed. Try again later.")
 		app.Exit()
