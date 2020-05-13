@@ -42,7 +42,10 @@ func (t *Tunnel) Start() {
 		}
 	}
 
-	tunnelConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", t.TunnelIp, t.TunnelPort))
+	tunnelConn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", t.TunnelIp, t.TunnelPort), &tls.Config{
+		InsecureSkipVerify: true,
+	})
+
 	if err != nil {
 		deviceConn.Close()
 		return
