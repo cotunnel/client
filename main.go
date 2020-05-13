@@ -28,6 +28,12 @@ func main() {
 			&cli.StringFlag{
 				Name:  "key",
 				Usage: "--key {your cotunnel client key}",
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:  "exit",
+				Usage: "--exit true",
+				Required:  false,
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -41,6 +47,7 @@ func main() {
 
 			options := app.Options{}
 			options.Key = c.String("key")
+			options.Exit = c.Bool("exit")
 			options.Token = ""
 			options.Path = path
 
