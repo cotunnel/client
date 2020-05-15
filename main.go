@@ -1,39 +1,38 @@
 package main
 
 import (
+	"bufio"
 	"client/app"
 	"client/cog"
+	"fmt"
 	"github.com/kardianos/osext"
 	"github.com/urfave/cli"
 	"io/ioutil"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
-	"bufio"
-	"fmt"
 )
 
 func main() {
 
 	cog.SetDebug(false)
 
-	cog.Print(cog.INFO, "COTUNNEL v"+strconv.Itoa(app.Version))
+	cog.Print(cog.INFO, "COTUNNEL v"+app.Version)
 
 	cmd := &cli.App{
 		Name:    "cotunnel",
-		Version: strconv.Itoa(app.Version),
+		Version: app.Version,
 		Usage:   "",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:  "key",
-				Usage: "--key {your cotunnel client key}",
+				Name:     "key",
+				Usage:    "--key {your cotunnel client key}",
 				Required: false,
 			},
 			&cli.BoolFlag{
-				Name:  "exit",
-				Usage: "--exit true",
-				Required:  false,
+				Name:     "exit",
+				Usage:    "--exit true",
+				Required: false,
 			},
 		},
 		Action: func(c *cli.Context) error {

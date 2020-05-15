@@ -2,6 +2,7 @@ package app
 
 import (
 	"client/cog"
+	"client/opcode"
 	"client/terminal"
 	"client/utils"
 	"fmt"
@@ -10,7 +11,6 @@ import (
 	"github.com/monnand/dhkx"
 	"github.com/orcaman/concurrent-map"
 	"github.com/shirou/gopsutil/host"
-	"client/opcode"
 	"net"
 	"net/http"
 	"os"
@@ -20,7 +20,7 @@ import (
 	"unicode/utf8"
 )
 
-const Version = 118
+const Version = "1.0.0"
 const TerminalTagName = "cotunnel"
 const TerminalUIdSize = 4
 
@@ -40,12 +40,12 @@ type App struct {
 
 	WriteMutex sync.Mutex
 
-	SafeReconnect	bool
+	SafeReconnect bool
 }
 
 type Options struct {
 	Key   string `hcl:"key"`
-	Exit  bool	  `hcl:"key"`
+	Exit  bool   `hcl:"key"`
 	Token string `hcl:"token"`
 	Path  string `hcl:"path"`
 }
@@ -213,12 +213,12 @@ func (app *App) S2CDeviceTunnelHandler(p packet.Packet) {
 	}
 
 	tunnel := Tunnel{
-		Type:          int(tunnelType),
-		ConnectionUid: connectionUid,
-		TunnelIp:      tunnelIp,
-		TunnelPort:    tunnelPort,
-		DevicePort:    devicePort,
-		DeviceTlsEnabled:	deviceTlsEnabled,
+		Type:             int(tunnelType),
+		ConnectionUid:    connectionUid,
+		TunnelIp:         tunnelIp,
+		TunnelPort:       tunnelPort,
+		DevicePort:       devicePort,
+		DeviceTlsEnabled: deviceTlsEnabled,
 	}
 
 	go tunnel.Start()
@@ -469,7 +469,7 @@ func (app *App) S2CDeviceLoginHandler(p packet.Packet) {
 	if loginStatus > 0 {
 		if loginStatus == 4 {
 
-			versionNumber, err := p.ReadInteger()
+			versionNumber, err := p.ReadString()
 			if err != nil {
 				cog.Print(cog.ERROR, "Login failed. Try again later.")
 				app.Exit()
@@ -592,7 +592,7 @@ func (app *App) S2CDeviceHandshakeOKHandler() {
 		// Login
 		p := packet.Packet{}
 		p.New(opcode.C2SDeviceLogin)
-		p.WriteInteger(Version)
+		p.WriteString(Version)
 		p.WriteString(app.Options.Token)
 		app.Write(p)
 	} else {
@@ -698,7 +698,7 @@ func (app *App) DeleteTerminal(terminalUId string) {
 	app.Terminals.Remove(terminalUId)
 }
 
-func (app *App) Update(versionNumber int) {
+func (app *App) Update(versionNumber string) {
 
 	cog.Print(cog.INFO, "Updating the client...")
 
@@ -708,7 +708,7 @@ func (app *App) Update(versionNumber int) {
 		binaryName += ".exe"
 	}
 
-	updateUrl := fmt.Sprintf("https://s3.amazonaws.com/cotunnel/client/build/%d/%s/%s/%s", versionNumber, runtime.GOOS, runtime.GOARCH, binaryName)
+	updateUrl := fmt.Sprintf("https://s3.amazonaws.com/cotunnel/client/build/%s/%s/%s/%s", versionNumber, runtime.GOOS, runtime.GOARCH, binaryName)
 
 	resp, err := http.Get(updateUrl)
 	if err != nil {
