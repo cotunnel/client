@@ -20,7 +20,7 @@ import (
 	"unicode/utf8"
 )
 
-const Version = "1.0.1"
+const Version = "1.0.2"
 const TerminalTagName = "cotunnel"
 const TerminalUIdSize = 4
 
@@ -731,7 +731,7 @@ func (app *App) Update(versionNumber string) {
 	}
 
 	if err := utils.CmdRestart(); err != nil {
-		cog.Print(cog.ERROR, "Restart failed. You should restart the app.")
+		cog.Print(cog.ERROR, "Update failed. You should restart the app.")
 		os.Exit(0)
 		return
 	}

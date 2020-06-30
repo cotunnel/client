@@ -107,11 +107,21 @@ func CmdRestart() error {
 
 	time.Sleep(1 * time.Second)
 
-	execErr := syscall.Exec(binary, os.Args, os.Environ())
+	// trim --key args. we don't want to register after restart
+	var manipulatedArgs = make([]string, 0)
+	for i := 0; i < len(os.Args); i++ {
+		if os.Args[i] == "--key" || os.Args[i] == "-key" {
+			i++
+			continue
+		} else {
+			manipulatedArgs = append(manipulatedArgs, os.Args[i])
+		}
+	}
+
+	execErr := syscall.Exec(binary, manipulatedArgs, os.Environ())
 	if execErr != nil {
 		return err
 	}
 
 	return nil
 }
-
