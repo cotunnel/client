@@ -20,7 +20,7 @@ import (
 	"unicode/utf8"
 )
 
-const Version = "1.0.0"
+const Version = "1.0.1"
 const TerminalTagName = "cotunnel"
 const TerminalUIdSize = 4
 
@@ -537,7 +537,6 @@ func (app *App) S2CDeviceRegisterHandler(p packet.Packet) {
 
 		if app.Options.Exit {
 			cog.Print(cog.INFO, "Successfully registered.")
-			cog.Print(cog.INFO, "You must start Cotunnel client again without --key command.")
 			app.Exit()
 			return
 		} else {
