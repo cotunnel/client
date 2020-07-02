@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.3] - 2020-07-01
 
 ### Changed
-- Tunnel log added. Users can show web tunnel requests on cotunnel client console now.
+- Tunnel log added. Users can see web tunnel requests on cotunnel client console now.
 
 ## [1.0.2] - 2020-06-30
 
