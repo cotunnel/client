@@ -1,5 +1,5 @@
 # What is cotunnel?
-[Cotunnel](https://www.cotunnel.com) is a service you can connect to your device's terminal, local webservers from everywhere. You don't need static IP, DDNS, or another service anymore. Cotunnel is your device's gateway to the world. 
+[Cotunnel](https://www.cotunnel.com) is a service you can connect to your device's terminal and local webservers from everywhere. You don't need static IP, DDNS, or another service anymore. Cotunnel is your device's gateway to the world. 
 
 > This repository includes cotunnel client. You can build and install cotunnel client from the source code following the instructions.
 
