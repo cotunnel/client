@@ -20,7 +20,7 @@ import (
 	"unicode/utf8"
 )
 
-const Version = "1.0.2"
+const Version = "1.0.3"
 const TerminalTagName = "cotunnel"
 const TerminalUIdSize = 4
 
@@ -212,16 +212,38 @@ func (app *App) S2CDeviceTunnelHandler(p packet.Packet) {
 		return
 	}
 
-	tunnel := Tunnel{
-		Type:             int(tunnelType),
-		ConnectionUid:    connectionUid,
-		TunnelIp:         tunnelIp,
-		TunnelPort:       tunnelPort,
-		DevicePort:       devicePort,
-		DeviceTlsEnabled: deviceTlsEnabled,
-	}
+	if tunnelType == 1 {
+		method, err := p.ReadString()
+		if err != nil {
+			return
+		}
 
-	go tunnel.Start()
+		_, err = p.ReadString()
+		if err != nil {
+			return
+		}
+
+		path, err := p.ReadString()
+		if err != nil {
+			return
+		}
+
+		tunnel := Tunnel{
+			Type:             int(tunnelType),
+			ConnectionUid:    connectionUid,
+			TunnelIp:         tunnelIp,
+			TunnelPort:       tunnelPort,
+			DevicePort:       devicePort,
+			DeviceTlsEnabled: deviceTlsEnabled,
+		}
+
+		go tunnel.Start()
+
+		fmt.Println(fmt.Sprintf("[%s]	%s	%s	%s", time.Now().Format("2006-01-02 15:04:05"), "TUNNEL", method, path))
+	} else {
+		// we don't support another tunnel types yet
+		return
+	}
 }
 
 func (app *App) S2CDeviceResizeTerminalHandler(p packet.Packet) {
