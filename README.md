@@ -33,8 +33,6 @@ You can add your workmates to your device's working group with privileges, then 
 ## How to build cotunnel client?
 
  - Install golang [https://golang.org/](https://golang.org/)
- - Install dep [https://github.com/golang/dep](https://github.com/golang/dep)
- >curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
  - Create your working folder named cotunnel this will be our gopath folder.
  >mkdir cotunnel
  
@@ -45,10 +43,10 @@ You can add your workmates to your device's working group with privileges, then 
  >git clone gitlab.com/cotunnel/client
  
  >cd client
- - Get required dependencies using dep.
- >dep ensure
+ - Get required dependencies using Go Modules.
+ >go mod vendor
  - Build client, a file named "client" will be created.
- > go build
+ >go build
 
 ## How to install cotunnel client?
 

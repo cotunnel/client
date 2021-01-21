@@ -1,32 +1,41 @@
 package app
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"sync"
-	"crypto/tls"
 	"time"
 )
 
 type Tunnel struct {
-	Type          int
-	ConnectionUid string
-	TunnelIp      string
-	TunnelPort    int
-	DevicePort    int
-	DeviceTlsEnabled    byte
+	Type             int
+	ConnectionUid    string
+	TunnelIp         string
+	TunnelPort       int
+	DeviceHost       string
+	DevicePort       int
+	DeviceTlsEnabled byte
+
+	ExitDeviceReceiverLoop chan bool
+	ExitTunnelReceiverLoop chan bool
+
+	DeviceDialerTimeout  int
+	TunnelDialerTimeout  int
+	TunnelSessionTimeout int
+
+	BufferSize int
 }
 
-func (t *Tunnel) Start() {
+func handleTcpTunnel(tunnel *Tunnel) {
+	deviceAddr := fmt.Sprintf("%s:%d", tunnel.DeviceHost, tunnel.DevicePort)
 
 	var err error
 	var deviceConn net.Conn
 
-	deviceAddr := fmt.Sprintf("127.0.0.1:%d", t.DevicePort)
+	deviceConnDialer := net.Dialer{Timeout: time.Duration(tunnel.DeviceDialerTimeout) * time.Millisecond}
 
-	deviceConnDialer := net.Dialer{Timeout: 1 * time.Second}
-
-	if t.DeviceTlsEnabled == 0 {
+	if tunnel.DeviceTlsEnabled == 0 {
 
 		deviceConn, err = deviceConnDialer.Dial("tcp", deviceAddr)
 		if err != nil {
@@ -42,7 +51,7 @@ func (t *Tunnel) Start() {
 		}
 	}
 
-	tunnelConn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", t.TunnelIp, t.TunnelPort), &tls.Config{
+	tunnelConn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", tunnel.TunnelIp, tunnel.TunnelPort), &tls.Config{
 		InsecureSkipVerify: true,
 	})
 
@@ -51,10 +60,11 @@ func (t *Tunnel) Start() {
 		return
 	}
 
-	_, err = tunnelConn.Write([]byte(t.ConnectionUid))
+	_, err = tunnelConn.Write([]byte(tunnel.ConnectionUid))
 	if err != nil {
 		tunnelConn.Close()
 		deviceConn.Close()
+		return
 	}
 
 	var wg sync.WaitGroup
@@ -64,15 +74,20 @@ func (t *Tunnel) Start() {
 		defer wg.Done()
 
 		for {
-			var buf = make([]byte, 2048)
-			n, err := deviceConn.Read(buf)
-			if err != nil {
-				deviceConn.Close()
-				tunnelConn.Close()
-				break
-			}
+			select {
+			case <-tunnel.ExitDeviceReceiverLoop:
+				return
+			default:
+				var buf = make([]byte, tunnel.BufferSize)
+				n, err := deviceConn.Read(buf)
+				if err != nil {
+					deviceConn.Close()
+					tunnelConn.Close()
+					return
+				}
 
-			tunnelConn.Write(buf[:n])
+				tunnelConn.Write(buf[:n])
+			}
 		}
 	}()
 
@@ -80,17 +95,145 @@ func (t *Tunnel) Start() {
 		defer wg.Done()
 
 		for {
-			var buf = make([]byte, 2048)
-			n, err := tunnelConn.Read(buf)
-			if err != nil {
-				deviceConn.Close()
-				tunnelConn.Close()
-				break
-			}
+			select {
+			case <-tunnel.ExitTunnelReceiverLoop:
+				return
+			default:
+				var buf = make([]byte, tunnel.BufferSize)
+				n, err := tunnelConn.Read(buf)
+				if err != nil {
+					deviceConn.Close()
+					tunnelConn.Close()
+					return
+				}
 
-			deviceConn.Write(buf[:n])
+				deviceConn.Write(buf[:n])
+			}
 		}
 	}()
 
 	wg.Wait()
+}
+
+func handleUdpTunnel(tunnel *Tunnel) {
+
+	deviceAddr := fmt.Sprintf("%s:%d", tunnel.DeviceHost, tunnel.DevicePort)
+
+	localUdpAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
+	if err != nil {
+		return
+	}
+
+	tunnelUdpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", tunnel.TunnelIp, tunnel.TunnelPort))
+	if err != nil {
+		return
+	}
+
+	deviceRemoteUdpAddr, err := net.ResolveUDPAddr("udp", deviceAddr)
+	if err != nil {
+		return
+	}
+
+	deviceConn, err := net.DialUDP("udp", localUdpAddr, deviceRemoteUdpAddr)
+	if err != nil {
+		return
+	}
+
+	tunnelConn, err := net.DialUDP("udp", localUdpAddr, tunnelUdpAddr)
+	if err != nil {
+		return
+	}
+
+	_, err = tunnelConn.Write([]byte(tunnel.ConnectionUid))
+	if err != nil {
+		tunnelConn.Close()
+		deviceConn.Close()
+		return
+	}
+
+	// start timer
+	udpSessionTimer := time.NewTimer(time.Duration(tunnel.TunnelSessionTimeout) * time.Millisecond)
+
+	go func() {
+		<-udpSessionTimer.C
+		deviceConn.Close()
+		tunnelConn.Close()
+
+		tunnel.ExitDeviceReceiverLoop <- true
+		tunnel.ExitTunnelReceiverLoop <- true
+	}()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for {
+			select {
+			case <-tunnel.ExitDeviceReceiverLoop:
+				return
+			default:
+				data := make([]byte, tunnel.BufferSize)
+				readLen, _, err := deviceConn.ReadFromUDP(data)
+				if err != nil {
+					deviceConn.Close()
+					tunnelConn.Close()
+					return
+				}
+
+				data = data[:readLen]
+				_, err = tunnelConn.Write(data)
+				if err != nil {
+					deviceConn.Close()
+					tunnelConn.Close()
+					return
+				}
+
+				udpSessionTimer.Reset(time.Duration(tunnel.TunnelSessionTimeout) * time.Millisecond)
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for {
+			select {
+			case <-tunnel.ExitTunnelReceiverLoop:
+				return
+			default:
+				data := make([]byte, tunnel.BufferSize)
+				readLen, _, err := tunnelConn.ReadFromUDP(data)
+				if err != nil {
+					deviceConn.Close()
+					tunnelConn.Close()
+					return
+				}
+
+				data = data[:readLen]
+				_, err = deviceConn.Write(data)
+				if err != nil {
+					deviceConn.Close()
+					tunnelConn.Close()
+					return
+				}
+
+				udpSessionTimer.Reset(time.Duration(tunnel.TunnelSessionTimeout) * time.Millisecond)
+			}
+		}
+	}()
+
+	wg.Wait()
+}
+
+func (tunnel *Tunnel) Start() {
+
+	if tunnel.Type == 1 || tunnel.Type == 2 {
+		handleTcpTunnel(tunnel)
+	} else if tunnel.Type == 3 {
+		handleUdpTunnel(tunnel)
+	} else {
+		// unsupported tunnel type
+	}
 }

@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2021-01-21
+
+### Added
+- TCP/UDP tunnel added.
+- Host parameter added to tunnels. Your tunnels can connect different host from localhost.
+
+### Changed
+- Dependency manager migrated to Go Modules.
+- vendor folder removed from the repository.
+- WEB tunnel bug fixed.
+- Client update function bug fixed.
+
 ## [1.0.3] - 2020-07-01
 
 ### Changed
