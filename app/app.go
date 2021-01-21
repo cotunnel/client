@@ -20,7 +20,7 @@ import (
 	"unicode/utf8"
 )
 
-const Version = "1.0.3"
+const Version = "1.1.1"
 const TerminalTagName = "cotunnel"
 const TerminalUIdSize = 4
 
@@ -202,17 +202,34 @@ func (app *App) S2CDeviceTunnelHandler(p packet.Packet) {
 		return
 	}
 
+	deviceHost, err := p.ReadString()
+	if err != nil {
+		return
+	}
+
 	devicePort, err := p.ReadInteger()
 	if err != nil {
 		return
 	}
 
-	deviceTlsEnabled, err := p.ReadByte()
+	bufferSize, err := p.ReadInteger()
 	if err != nil {
 		return
 	}
 
 	if tunnelType == 1 {
+		// web tunnel we need read extra data
+
+		deviceTlsEnabled, err := p.ReadByte()
+		if err != nil {
+			return
+		}
+
+		dealerTimeout, err := p.ReadInteger()
+		if err != nil {
+			return
+		}
+
 		method, err := p.ReadString()
 		if err != nil {
 			return
@@ -229,17 +246,81 @@ func (app *App) S2CDeviceTunnelHandler(p packet.Packet) {
 		}
 
 		tunnel := Tunnel{
-			Type:             int(tunnelType),
-			ConnectionUid:    connectionUid,
-			TunnelIp:         tunnelIp,
-			TunnelPort:       tunnelPort,
-			DevicePort:       devicePort,
-			DeviceTlsEnabled: deviceTlsEnabled,
+			Type:                   int(tunnelType),
+			ConnectionUid:          connectionUid,
+			TunnelIp:               tunnelIp,
+			TunnelPort:             tunnelPort,
+			DeviceHost:             deviceHost,
+			DevicePort:             devicePort,
+			DeviceTlsEnabled:       deviceTlsEnabled,
+			BufferSize:             bufferSize,
+			ExitDeviceReceiverLoop: make(chan bool),
+			ExitTunnelReceiverLoop: make(chan bool),
+			DeviceDialerTimeout:    dealerTimeout,
+			TunnelDialerTimeout:    dealerTimeout,
 		}
 
 		go tunnel.Start()
 
 		fmt.Println(fmt.Sprintf("[%s]	%s	%s	%s", time.Now().Format("2006-01-02 15:04:05"), "TUNNEL", method, path))
+	} else if tunnelType == 2 {
+		// tcp tunnel we need read extra data
+
+		deviceTlsEnabled, err := p.ReadByte()
+		if err != nil {
+			return
+		}
+
+		dealerTimeout, err := p.ReadInteger()
+		if err != nil {
+			return
+		}
+
+		tunnel := Tunnel{
+			Type:                   int(tunnelType),
+			ConnectionUid:          connectionUid,
+			TunnelIp:               tunnelIp,
+			TunnelPort:             tunnelPort,
+			DeviceHost:             deviceHost,
+			DevicePort:             devicePort,
+			DeviceTlsEnabled:       deviceTlsEnabled,
+			BufferSize:             bufferSize,
+			ExitDeviceReceiverLoop: make(chan bool),
+			ExitTunnelReceiverLoop: make(chan bool),
+			DeviceDialerTimeout:    dealerTimeout,
+			TunnelDialerTimeout:    dealerTimeout,
+		}
+
+		go tunnel.Start()
+
+		fmt.Println(fmt.Sprintf("[%s]	%s	%s", time.Now().Format("2006-01-02 15:04:05"), "TUNNEL", "TCP"))
+
+	} else if tunnelType == 3 {
+		// udp tunnel we need read extra data
+
+		sessionTimeout, err := p.ReadInteger()
+		if err != nil {
+			return
+		}
+
+		tunnel := Tunnel{
+			Type:                   int(tunnelType),
+			ConnectionUid:          connectionUid,
+			TunnelIp:               tunnelIp,
+			TunnelPort:             tunnelPort,
+			DeviceHost:             deviceHost,
+			DevicePort:             devicePort,
+			DeviceTlsEnabled:       0,
+			BufferSize:             bufferSize,
+			ExitDeviceReceiverLoop: make(chan bool),
+			ExitTunnelReceiverLoop: make(chan bool),
+			TunnelSessionTimeout:   sessionTimeout,
+		}
+
+		go tunnel.Start()
+
+		fmt.Println(fmt.Sprintf("[%s]	%s	%s", time.Now().Format("2006-01-02 15:04:05"), "TUNNEL", "UDP"))
+
 	} else {
 		// we don't support another tunnel types yet
 		return
@@ -498,7 +579,12 @@ func (app *App) S2CDeviceLoginHandler(p packet.Packet) {
 				return
 			}
 
-			app.Update(versionNumber)
+			if app.Update(versionNumber) {
+				os.Exit(0)
+			} else {
+				app.Conn.Close()
+				return
+			}
 
 		} else {
 			cog.Print(cog.ERROR, "Login failed. Try again later.")
@@ -719,7 +805,7 @@ func (app *App) DeleteTerminal(terminalUId string) {
 	app.Terminals.Remove(terminalUId)
 }
 
-func (app *App) Update(versionNumber string) {
+func (app *App) Update(versionNumber string) bool {
 
 	cog.Print(cog.INFO, "Updating the client...")
 
@@ -735,30 +821,26 @@ func (app *App) Update(versionNumber string) {
 	if err != nil {
 		cog.Print(cog.ERROR, err.Error())
 		cog.Print(cog.ERROR, "Update failed.")
-		os.Exit(0)
-		return
+		return false
 	}
 
 	if resp.StatusCode != 200 {
 		cog.Print(cog.ERROR, "Update failed.")
-		os.Exit(0)
-		return
+		return false
 	}
 
 	err = update.Apply(resp.Body, update.Options{})
 	if err != nil {
 		cog.Print(cog.ERROR, "Update failed.")
-		os.Exit(0)
-		return
+		return false
 	}
 
 	if err := utils.CmdRestart(); err != nil {
 		cog.Print(cog.ERROR, "Update failed. You should restart the app.")
-		os.Exit(0)
-		return
+		return true
 	}
 
-	os.Exit(0)
+	return true
 }
 
 func (app *App) Write(p packet.Packet) {
